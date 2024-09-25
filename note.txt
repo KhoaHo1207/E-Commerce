@@ -1,3 +1,4 @@
 Install
 
 1/ nodemon express dotenv express-async-handler jsonwebtoken mongoose bcrypt
+2/ Tạo model -> route -> controller
