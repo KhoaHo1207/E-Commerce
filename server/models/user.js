@@ -68,12 +68,16 @@ var userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function (next) {
-  if (!this.isModied("password")) {
+  if (!this.isModified("password")) {
     //nếu password không có gì thay đổi
     next();
   }
   const salt = bcrypt.genSaltSync(10);
   this.password = await bcrypt.hash(this.password, salt);
 }); //truoc khi luu thuc hien nhung doan code co trong nay
-//Export the model
+userSchema.methods = {
+  isCorrectPassword: async function (password) {
+    return await bcrypt.compare(password, this.password);
+  },
+};
 module.exports = mongoose.model("User", userSchema);
