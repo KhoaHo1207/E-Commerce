@@ -4,6 +4,8 @@ const dbConnect = require("./config/dbconnect");
 const app = express();
 const port = process.env.PORT || 8080;
 const initRoutes = require("./routes");
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
 app.use(express.json()); //express đọc hiểu file json gửi lên từ client
 app.use(express.urlencoded({ extended: true })); //gửi các định dạng khác như object, string,...
 
