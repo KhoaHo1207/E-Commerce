@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const asyncHandler = require("express-async-handler");
+const jwt = require("jsonwebtoken");
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -54,7 +55,7 @@ const login = asyncHandler(async (req, res) => {
       payload: userData,
     });
   } else if (response && !(await response.isCorrectPassword(password))) {
-    return res.status(401).json({
+    return res.status(400).json({
       success: false,
       message: "Invalid password!",
     });
@@ -70,8 +71,59 @@ const getCurrent = async (req, res) => {
     payload: user ? user : "User not found!",
   });
 };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  //Lấy refreshToken từ cookie
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) {
+    return res.status(401).json({ success: false, message: "Not authorized!" });
+  }
+  jwt.verify(refreshToken, process.env.JWT_SECRET, async (err, decode) => {
+    if (err) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Invalid refresh token" });
+    } else {
+      const response = await User.findOne({
+        _id: decode._id,
+        refreshToken: refreshToken,
+      });
+      return res.status(200).json({
+        success: response ? true : false,
+        message: response
+          ? "Refresh token successfuly!"
+          : "Refresh token failed!",
+        accessToken: response
+          ? generateAccessToken(response._id, response.role)
+          : "Refresh token failed!",
+      });
+    }
+  });
+});
+const logout = asyncHandler(async (req, res) => {
+  const cookie = req.cookies;
+  if (!cookie || !cookie.refreshToken) {
+    return res.status(401).json({ success: false, message: "Not authorized!" });
+  } else {
+    await User.findOneAndUpdate(
+      { refreshToken: cookie.refreshToken }, //tìm đúng refresh token đó
+      { refreshToken: null }, //xóa refreshToken
+      { new: true } //nhận bản sau update
+    );
+    res.clearCookie("refreshToken", {
+      httpOnly: true, //Thuộc tính httpOnly chỉ ra rằng cookie chỉ có thể được truy cập bởi máy chủ, và không thể được truy cập hoặc sửa đổi bởi JavaScript trên trình duyệt.
+      path: "/",
+      secure: true, //huộc tính secure yêu cầu cookie chỉ được gửi qua kết nối HTTPS. Điều này giúp bảo vệ thông tin cookie không bị rò rỉ trên các kết nối HTTP không an toàn.
+      maxAge: 0, //Điều này có nghĩa là cookie sẽ được xóa ngay khi lệnh này được thực thi. Trình duyệt sẽ tự động xóa cookie khi nhận được yêu cầu này từ máy chủ.
+    }); //xóa refreshToken từ cookie
+    return res
+      .status(200)
+      .json({ success: true, message: "Logout successfuly!" });
+  }
+});
 module.exports = {
   register,
   login,
   getCurrent,
+  refreshAccessToken,
+  logout,
 };
